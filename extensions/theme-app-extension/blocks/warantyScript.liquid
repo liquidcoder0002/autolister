@@ -1,0 +1,372 @@
+<style>
+  .warranty_text{
+      padding-top: 5px;
+      padding-bottom: 5px;
+      font-weight: bold;
+      font-family: inherit;
+      width: 100%;
+  }
+  #warranty_div{
+      padding-top: 5px;
+      padding-bottom: 5px;
+      font-family: inherit;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+  }
+/*       .warranty-btn{
+      max-width: 100%;
+      width: fit-content;
+      color: #fff!important;
+      background-color: #64bc46;
+      border: none;
+      display: inline-block;
+      padding: 8px 16px;
+      vertical-align: middle;
+      overflow: hidden;
+      text-decoration: none;
+      text-align: center;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: inherit;
+      font-weight: bold;
+  } */
+
+  .warranty-btn-wrap .button {
+      float: left;
+      margin: 0 5px 0 0;
+      width: 100px;
+      height: 40px;
+      position: relative;
+      background: none;
+      color: black;
+    }
+
+  .warranty-btn-wrap label,
+.warranty-btn-wrap input {
+display: block;
+position: absolute;
+top: 0;
+left: 0;
+right: 0;
+bottom: 0;
+}
+
+.warranty-btn-wrap input[type="radio"] {
+opacity: 0.01;
+z-index: 100;
+cursor: pointer;
+}
+
+.warranty-btn-wrap input[type="radio"]:checked+label,
+.Checked+label {
+background: #64bc46;
+color: white;
+}
+
+.warranty-btn-wrap label {
+padding: 5px;
+cursor: pointer;
+z-index: 90;
+}
+
+.warranty-btn-wrap label:hover {
+background: #64bc46;
+}
+
+</style>
+<script>
+
+  var productIds = [];
+  var vendor = '{{product.vendor}}';
+  var page = '{{template.name}}';
+  var productId = '{{product.id}}';
+
+  var urlParams = new URLSearchParams(window.location.search);
+  var variantId = urlParams.get("variant");
+
+  if(!variantId)
+    {
+      variantId = '{{ product.variants[0].id }}';
+    }
+
+    (function () {
+        var rs = history.replaceState;
+        history.replaceState = function () {
+        rs.apply(history, arguments); // preserve normal functionality
+        //console.log("navigating", arguments); // do something extra here; raise an event
+        var urlParams = new URLSearchParams(window.location.search);
+        var variantId = urlParams.get("variant");
+
+          
+              if(variantId && document.querySelector('#warranty_div'))
+              {
+                for(var i=0; i<document.querySelectorAll('#warranty_div').length; i++)
+                  {
+                     document.querySelectorAll('#warranty_div')[i].remove();
+                  }
+              }
+
+          setTimeout(function(){
+  
+              if (localStorage.getItem('warrantyData') && localStorage.getItem('warrantyData') != '')
+              {
+                 var warrantyLocalData = JSON.parse(localStorage.getItem('warrantyData'));
+                 const variantWarranty = warrantyLocalData.filter((warranty) => warranty.variant_id == variantId);
+  
+                if(variantWarranty && variantWarranty.length > 0 && page == 'product' && vendor != 'warranty')
+                {
+                  var warrantyDiv = `<div id="warranty_div">
+                  <div class="warranty_text">Add Warranty to your product.</div><div class="warranty-btn-wrap">`;
+                  var key=0;
+                  for(const warranty of variantWarranty)
+                    {
+                      warrantyDiv += `<div class="button">
+                        <input type="radio" id="${key}" name="warranty-radio" value="${warranty.warranty_variant_id}"/>
+                        <label class="btn btn-default" for="${key}">${warranty.title} - ${warranty.price}</label>
+                      </div>`;
+                      key++;
+                    }
+                    warrantyDiv+=`</div></div>`;
+                    
+                    if(document.querySelector('.warranty-pdp-div'))
+                    {
+                       document.querySelector('.warranty-pdp-div').innerHTML = warrantyDiv; 
+                    }
+                    else
+                    {
+                      document.querySelector('[action="/cart/add"]').insertAdjacentHTML('beforebegin', warrantyDiv); 
+                    }
+                }
+              }
+          }, 1000);
+
+
+      };
+    }());
+
+  function addWarrantyOnCart(variantId, parentProId, parentVarId){
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        'items': [{
+          'id': variantId,
+          'quantity': 1,
+          'properties': {
+            '_warranty': 'yes',
+            '_parentProductId': parentProId,
+            '_parentVariantId': parentVarId,
+          }
+        }]
+      })
+    }).then(res => res.json())
+    .then(res => {
+      console.log("added");
+      location.reload();
+    });
+  }
+
+  function getTargetButtonFromEvent(target) {
+            if (!target) {
+              return null;
+            } else if (target.tagName == "BUTTON") {
+              return target;
+            } else if (target.closest("button")) {
+              return target.closest("button");
+            } else {
+              return null;
+            }
+          }
+    
+      const interceptBtn = () => {
+          let secondClick=false;
+          document.body.addEventListener(
+              "click",
+              function (e) {
+               const add_to_cart_target = getTargetButtonFromEvent(e.target);
+               const closest_form = add_to_cart_target?.closest("form");
+                 if (
+                  add_to_cart_target &&
+                  (add_to_cart_target.getAttribute("data-testid") == "Checkout-button" || add_to_cart_target.getAttribute("data-testid") != "Checkout-button") &&
+                  closest_form &&
+                  closest_form.getAttribute("action") == "/cart/add"
+                ) {
+    
+                  if (!secondClick && document.querySelector('input[name="warranty-radio"]:checked') && document.querySelector('input[name="warranty-radio"]:checked').value) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    // secondClick=true;
+
+                    console.log("start");
+
+                    var urlParams = new URLSearchParams(window.location.search);
+                    var variantId = urlParams.get("variant");
+              
+                    if(!variantId)
+                      {
+                        variantId = ShopifyAnalytics.meta.selectedVariantId;
+                      }
+
+                    //do code
+                    fetch('/cart/add.js', {
+                      method: 'POST',
+                      headers: {
+                        'Accept': 'application/json, text/plain, */*',
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        'items': [{
+                          'id': document.querySelector('input[name="warranty-radio"]:checked').value,
+                          'quantity': 1,
+                          'properties': {
+                            '_warranty': 'yes',
+                            '_parentProductId': productId,
+                            '_parentVariantId': variantId,
+                          }
+                        }]
+                      })
+                    }).then(res => res.json())
+                    .then(res => {
+                      console.log("added");
+                      secondClick = true;
+                      e.target.click();
+                    });
+                    
+                  } else {
+                    //secondClick = false;
+                  }
+                }
+              },
+              true
+            );
+      }
+
+  window.addEventListener('DOMContentLoaded', (event) => {
+      console.log('DOM fully loaded and parsed');
+      interceptBtn();
+      if(productId)
+      {
+        productIds.push("gid://shopify/Product/"+productId);
+      }
+    
+
+  fetch('/cart.json?fetch_cart=1')
+    .then(response => response.json())
+    .then(cartData => {
+      
+        if(cartData && cartData.items && cartData.items.length > 0)
+        {
+          for(const item of cartData.items)
+          {
+            productIds.push("gid://shopify/Product/"+item.product_id);
+          }
+        }
+
+
+      fetch(`https://paymore-warranty-app.appmixo.in/script/checkWarranty`,{
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            'shop': '{{ shop.permanent_domain }}',
+            'productIds': productIds
+        }),
+      })
+      .then(response => response.json())
+      .then(async (data) => {
+        localStorage.setItem("warrantyData", JSON.stringify(data.warranties));
+        if(data && data.warranties && data.warranties.length > 0)
+        {
+
+          var productWarranties = data.warranties.filter((warranty) => warranty.variant_id == variantId);
+
+          if(productWarranties && productWarranties.length > 0 && page == 'product' && vendor != 'warranty')
+          {
+            var warrantyDiv = `<div id="warranty_div">
+            <div class="warranty_text">Add Warranty to your product.</div><div class="warranty-btn-wrap">`;
+            var index=0;
+            for(const warranty of productWarranties)
+              {
+                warrantyDiv += `<div class="button">
+                  <input type="radio" id="${index}" name="warranty-radio" value="${warranty.warranty_variant_id}"/>
+                  <label class="btn btn-default" for="${index}">${warranty.title} - ${warranty.price}</label>
+                </div>`;
+                index++;
+              }
+              warrantyDiv+=`</div></div>`;
+              if(document.querySelector('.warranty-pdp-div'))
+              {
+                 document.querySelector('.warranty-pdp-div').innerHTML = warrantyDiv; 
+              }
+              else
+              {
+                document.querySelector('[action="/cart/add"]').insertAdjacentHTML('beforebegin', warrantyDiv); 
+              }
+          }
+          else if(page == 'cart')
+          {
+            if(cartData && cartData.items && cartData.items.length > 0)
+            {
+              var i=0;
+              for (const item of cartData.items) { 
+                if(item.vendor != "Warranty")
+                {
+                   var getWarranty = data.warranties.filter((warranty) => warranty.variant_id == item.variant_id);
+                   console.log(getWarranty,'getWarranty');
+                   const match = await cartData.items.filter((value) => {
+                   console.log(value.properties);
+                      return value.properties ? value.properties._parentVariantId == item.variant_id : null
+                   });
+                  console.log("umi2",match);
+                  if(match.length == 0)
+                  {
+                    console.log("not match");
+                    if(document.querySelector(".cart-items"))
+                    {
+                      var cartDiv = document.querySelectorAll(".cart-items tbody tr")[i]; 
+                    }
+                    else if(document.querySelector(".cart-table"))
+                    {
+                      var cartDiv = document.querySelectorAll(".cart-table tbody tr")[i]; 
+                    }
+
+                     const warrantyCartDiv = `<div id="warranty_div"><div class="warranty_text">Add Warranty to your product.</div><div class="warranty-btn-wrap"><div class="button">
+                      <input type="radio" id="${i}" name="warranty-radio" value="${getWarranty[0].warranty_variant_id}" onclick="addWarrantyOnCart('${getWarranty[0].warranty_variant_id}','${item.product_id}','${item.variant_id}')"/>
+                      <label class="btn btn-default" for="${i}">${getWarranty[0].title} - ${getWarranty[0].price}</label>
+                    </div></div></div>`;
+
+                    cartDiv.insertAdjacentHTML('afterend', warrantyCartDiv);
+                    
+                  }
+                  else 
+                  {
+                    console.log("waranty product added");
+                  }
+                }
+
+                i++;
+               
+              }
+            }
+          }
+        }
+      }); 
+      
+  })
+  .catch(err => 
+    {
+      console.error(err)
+    });
+  });
+
+</script>
+{% schema %}
+{
+"name": "App Embed",
+"target": "body",
+"settings": []
+}
+{% endschema %}
