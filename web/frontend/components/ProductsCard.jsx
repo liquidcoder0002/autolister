@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useContext, useState } from "react";
 import {
   Card,
   Heading,
@@ -7,12 +7,16 @@ import {
   TextStyle,
 } from "@shopify/polaris";
 import { Toast } from "@shopify/app-bridge-react";
+
 import { useAppQuery, useAuthenticatedFetch } from "../hooks";
+
+import { ShopifyAppContext } from "./providers/ShopifyAppProvider";
 
 export function ProductsCard() {
   const emptyToastProps = { content: null };
   const [isLoading, setIsLoading] = useState(true);
   const [toastProps, setToastProps] = useState(emptyToastProps);
+  const appContext = useContext(ShopifyAppContext);
   const fetch = useAuthenticatedFetch();
 
   const {
@@ -29,9 +33,11 @@ export function ProductsCard() {
     },
   });
 
-  const toastMarkup = toastProps.content && !isRefetchingCount && (
-    <Toast {...toastProps} onDismiss={() => setToastProps(emptyToastProps)} />
-  );
+  const toastMarkup = appContext.embedded &&
+    toastProps.content &&
+    !isRefetchingCount && (
+      <Toast {...toastProps} onDismiss={() => setToastProps(emptyToastProps)} />
+    );
 
   const handlePopulate = async () => {
     setIsLoading(true);
